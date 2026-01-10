@@ -3,7 +3,23 @@ import { AgentRole, ProductionMode, StoryInput } from "../types";
 
 // Configuration
 const BACKEND_URL = 'http://localhost:5000/api/generate';
-const CLIENT_API_KEY = process.env.API_KEY; // Fallback for demo/preview
+
+// Helper to safely get API Key (handles both build-time env and runtime window polyfill)
+const getApiKey = () => {
+  // First try direct process.env access (bundler replaced)
+  try {
+    if (process.env.API_KEY) return process.env.API_KEY;
+  } catch (e) {
+    // ignore reference errors
+  }
+  
+  // Then try window object (runtime polyfill)
+  if (typeof window !== 'undefined') {
+    const win = window as any;
+    return win.process?.env?.API_KEY;
+  }
+  return undefined;
+};
 
 // Helper to extract text from response (works for both SDK instance and JSON response)
 const extractText = (response: any): string => {
@@ -16,8 +32,6 @@ const extractText = (response: any): string => {
 const generateContent = async (model: string, contents: any, config?: any) => {
   // 1. Try Backend First (if locally running)
   try {
-    // Only attempt backend if we aren't explicitly forced to client-side (optional logic)
-    // For this demo, we'll try fetch, if it fails, we fall back.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 1000); // Quick timeout to check if backend is up
 
@@ -39,8 +53,9 @@ const generateContent = async (model: string, contents: any, config?: any) => {
   }
 
   // 2. Fallback to Client-Side SDK
-  if (CLIENT_API_KEY) {
-    const ai = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
+  const apiKey = getApiKey();
+  if (apiKey) {
+    const ai = new GoogleGenAI({ apiKey });
     return await ai.models.generateContent({ model, contents, config });
   }
 
@@ -352,6 +367,10 @@ export const generateImage = async (imagePrompt: string): Promise<string | undef
     let part;
     if (response.candidates?.[0]?.content?.parts) {
         part = response.candidates[0].content.parts.find((p: any) => p.inlineData);
+    }
+    // Check if parts exist in different structure from backend
+    else if ((response as any).candidates?.[0]?.content?.parts) {
+         part = (response as any).candidates[0].content.parts.find((p: any) => p.inlineData);
     }
 
     if (part && part.inlineData && part.inlineData.data) {
