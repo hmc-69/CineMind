@@ -56,22 +56,5 @@ Customize the AI's output bias based on your target audience:
     *   Image Models: `gemini-2.5-flash-image`
 *   **File Processing**: `pdfjs-dist` (PDF), `mammoth` (DOCX)
 
-## 📦 Installation
-
-1.  Clone the repository.
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-3.  Set up your environment variables:
-    *   Create a `.env` file and add your Google Gemini API key:
-        ```
-        API_KEY=your_api_key_here
-        ```
-4.  Run the development server:
-    ```bash
-    npm start
-    ```
-
 ---
 *Powered by Google Gemini*
