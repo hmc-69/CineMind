@@ -15,7 +15,10 @@
     "react-markdown": "^10.1.0",
     "lucide-react": "^0.562.0",
     "mammoth": "1.8.0",
-    "pdfjs-dist": "3.11.174"
+    "pdfjs-dist": "3.11.174",
+    "dotenv": "^17.2.3",
+    "cors": "^2.8.5",
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

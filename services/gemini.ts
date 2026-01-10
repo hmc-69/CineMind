@@ -1,13 +1,54 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AgentRole, ProductionMode, StoryInput } from "../types";
 
-// Helper to get client
-const getClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Configuration
+const BACKEND_URL = 'http://localhost:5000/api/generate';
+const CLIENT_API_KEY = process.env.API_KEY; // Fallback for demo/preview
+
+// Helper to extract text from response (works for both SDK instance and JSON response)
+const extractText = (response: any): string => {
+  if (response.text) return response.text; // SDK Getter
+  // Manual extraction for JSON response
+  return response.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
+};
+
+// Unified Generation Function
+const generateContent = async (model: string, contents: any, config?: any) => {
+  // 1. Try Backend First (if locally running)
+  try {
+    // Only attempt backend if we aren't explicitly forced to client-side (optional logic)
+    // For this demo, we'll try fetch, if it fails, we fall back.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000); // Quick timeout to check if backend is up
+
+    const response = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, contents, config }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (e) {
+    // Backend unavailable or network error - proceed to fallback
+    // console.warn("Backend unavailable, falling back to Client-Side SDK");
+  }
+
+  // 2. Fallback to Client-Side SDK
+  if (CLIENT_API_KEY) {
+    const ai = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
+    return await ai.models.generateContent({ model, contents, config });
+  }
+
+  throw new Error("No backend available and no Client API Key found.");
+};
 
 // 0. Scriptwriter Agent
 export const runScriptwriterAgent = async (input: StoryInput): Promise<string> => {
-  const ai = getClient();
-  
   let prompt = "";
   
   if (input.inputType === 'script') {
@@ -64,20 +105,19 @@ export const runScriptwriterAgent = async (input: StoryInput): Promise<string> =
      `;
   }
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
+  const response = await generateContent(
+    'gemini-3-pro-preview',
+    prompt,
+    {
       systemInstruction: "You are a professional screenwriter. You write vivid action and realistic dialogue.",
     }
-  });
+  );
 
-  return response.text || "Scriptwriter failed to generate output.";
+  return extractText(response) || "Scriptwriter failed to generate output.";
 };
 
 // 1. Director Agent
 export const runDirectorAgent = async (input: StoryInput, scriptContent: string): Promise<string> => {
-  const ai = getClient();
   const prompt = `
     You are the Lead Director of a prestigious film studio.
     
@@ -107,20 +147,19 @@ export const runDirectorAgent = async (input: StoryInput, scriptContent: string)
     Output in clean Markdown format with headers.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
+  const response = await generateContent(
+    'gemini-3-pro-preview',
+    prompt,
+    {
       systemInstruction: "You are a visionary film director known for strong structural storytelling and cultural authenticity.",
     }
-  });
+  );
 
-  return response.text || "Director failed to generate output.";
+  return extractText(response) || "Director failed to generate output.";
 };
 
 // 2. Cinematographer Agent
 export const runCinematographerAgent = async (input: StoryInput, directorOutput: string): Promise<string> => {
-  const ai = getClient();
   const prompt = `
     You are an Oscar-winning Cinematographer (DOP).
     
@@ -138,20 +177,19 @@ export const runCinematographerAgent = async (input: StoryInput, directorOutput:
     Output in clean Markdown format in ${input.language}. Use tables for shot lists where appropriate.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
+  const response = await generateContent(
+    'gemini-3-pro-preview',
+    prompt,
+    {
       systemInstruction: "You are a master of light and composition. You speak in visual terms.",
     }
-  });
+  );
 
-  return response.text || "Cinematographer failed to generate output.";
+  return extractText(response) || "Cinematographer failed to generate output.";
 };
 
 // 3. Producer Agent
 export const runProducerAgent = async (input: StoryInput, dpOutput: string): Promise<string> => {
-  const ai = getClient();
   const prompt = `
     You are a pragmatic and experienced Executive Producer.
 
@@ -171,20 +209,19 @@ export const runProducerAgent = async (input: StoryInput, dpOutput: string): Pro
     Output a production report in Markdown in ${input.language}.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
+  const response = await generateContent(
+    'gemini-3-pro-preview',
+    prompt,
+    {
       systemInstruction: "You are the reality check. You care about budget, schedule, and marketability.",
     }
-  });
+  );
 
-  return response.text || "Producer failed to generate output.";
+  return extractText(response) || "Producer failed to generate output.";
 };
 
 // 4. Editor Agent
 export const runEditorAgent = async (input: StoryInput, directorOutput: string, producerOutput: string): Promise<string> => {
-  const ai = getClient();
   const prompt = `
     You are a Master Film Editor.
 
@@ -205,20 +242,19 @@ export const runEditorAgent = async (input: StoryInput, directorOutput: string, 
     Output in Markdown in ${input.language}.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
+  const response = await generateContent(
+    'gemini-3-pro-preview',
+    prompt,
+    {
       systemInstruction: "You are the final rewrite. You control time and tension.",
     }
-  });
+  );
 
-  return response.text || "Editor failed to generate output.";
+  return extractText(response) || "Editor failed to generate output.";
 };
 
 // 5. Marketing Agent
 export const runMarketingAgent = async (input: StoryInput, finalScript: string): Promise<string> => {
-  const ai = getClient();
   const prompt = `
     You are a Head of Marketing at a major studio.
 
@@ -242,20 +278,19 @@ export const runMarketingAgent = async (input: StoryInput, finalScript: string):
     Output in Markdown.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
+  const response = await generateContent(
+    'gemini-3-pro-preview',
+    prompt,
+    {
       systemInstruction: "You sell the dream. You are hype, precision, and audience psychology.",
     }
-  });
+  );
 
-  return response.text || "Marketing failed to generate output.";
+  return extractText(response) || "Marketing failed to generate output.";
 };
 
 // 6. Asset Generation (Storyboard Prompts)
 export const generateStoryboardPrompts = async (fullContext: string): Promise<string[]> => {
-  const ai = getClient();
   const prompt = `
     Based on the following film production package, generate 4 distinct, highly visual image prompts for a text-to-image AI model.
     These should represent the 4 most iconic frames of the movie.
@@ -271,10 +306,10 @@ export const generateStoryboardPrompts = async (fullContext: string): Promise<st
     }
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
+  const response = await generateContent(
+    'gemini-3-pro-preview',
+    prompt,
+    {
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,
@@ -286,10 +321,11 @@ export const generateStoryboardPrompts = async (fullContext: string): Promise<st
         }
       }
     }
-  });
+  );
 
   try {
-    const json = JSON.parse(response.text || "{}");
+    const text = extractText(response);
+    const json = JSON.parse(text || "{}");
     return json.prompts || [];
   } catch (e) {
     console.error("Failed to parse prompts", e);
@@ -299,22 +335,25 @@ export const generateStoryboardPrompts = async (fullContext: string): Promise<st
 
 // 7. Image Generation
 export const generateImage = async (imagePrompt: string): Promise<string | undefined> => {
-  const ai = getClient();
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
+    const response = await generateContent(
+      'gemini-2.5-flash-image',
+      {
         parts: [{ text: imagePrompt + ", cinematic lighting, photorealistic, movie still, 8k, detailed" }]
       },
-      config: {
+      {
         imageConfig: {
           aspectRatio: "16:9"
         }
       }
-    });
+    );
 
-    // Extract image
-    const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    // Extract image - Handle both SDK object and raw JSON
+    let part;
+    if (response.candidates?.[0]?.content?.parts) {
+        part = response.candidates[0].content.parts.find((p: any) => p.inlineData);
+    }
+
     if (part && part.inlineData && part.inlineData.data) {
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
     }
