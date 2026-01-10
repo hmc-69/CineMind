@@ -12,7 +12,7 @@ import {
 } from './services/gemini';
 import AgentCard from './components/AgentCard';
 import OutputDisplay from './components/OutputDisplay';
-import { Film, Play, Sparkles, Globe, Upload, FileText, AlignLeft, FileUp, Loader2 } from 'lucide-react';
+import { Film, Play, Sparkles, Globe, Upload, FileText, AlignLeft, FileUp, Loader2, Menu, X, Plus } from 'lucide-react';
 // @ts-ignore
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
@@ -62,6 +62,7 @@ export default function App() {
   const [rewriteScript, setRewriteScript] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isParsingFile, setIsParsingFile] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>(INITIAL_STATUS);
   const [filmPackage, setFilmPackage] = useState<FilmPackage>({
     id: 'draft-1',
@@ -71,6 +72,7 @@ export default function App() {
   });
   const [activeRole, setActiveRole] = useState<AgentRole>(AgentRole.Scriptwriter);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +86,8 @@ export default function App() {
     if (!input.content.trim()) return;
     
     setIsProcessing(true);
+    setHasStarted(true);
+    setShowMobileSidebar(false); // Close sidebar on mobile when starting
     
     // Determine Pipeline
     const includeScriptwriter = input.inputType === 'logline' || (input.inputType === 'script' && rewriteScript);
@@ -257,22 +261,42 @@ export default function App() {
     }
   };
 
+  // Helper to change active role
+  const handleAgentClick = (id: AgentRole) => {
+    setActiveRole(id);
+    setShowMobileSidebar(false);
+  };
+
   // --- Main App Render ---
   return (
-    <div className="flex h-screen bg-black text-zinc-200 overflow-hidden font-sans selection:bg-amber-500/30">
+    <div className="flex flex-col md:flex-row h-screen bg-black text-zinc-200 overflow-hidden font-sans selection:bg-amber-500/30 relative">
       
-      {/* Sidebar / Configuration */}
-      <div className="w-[400px] flex flex-col border-r border-zinc-800 bg-zinc-950/50 backdrop-blur-xl z-10">
+      {/* Sidebar / Configuration - Mobile Drawer & Desktop Sidebar */}
+      <div className={`
+          fixed inset-0 z-50 bg-zinc-950 flex flex-col transition-transform duration-300 ease-in-out
+          md:static md:w-[400px] md:border-r md:border-zinc-800 md:bg-zinc-950/50 md:backdrop-blur-xl md:z-10 md:translate-x-0
+          ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         
         {/* Header */}
-        <div className="p-6 border-b border-zinc-800">
+        <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 bg-amber-600 rounded flex items-center justify-center text-black font-bold">
                 <Film size={20} />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">CineMind <span className="text-zinc-500 font-normal">Studio</span></h1>
           </div>
-          <p className="text-xs text-zinc-500">Autonomous Multi-Agent Production Pipeline</p>
+          {/* Mobile Close Button */}
+          <button 
+             onClick={() => setShowMobileSidebar(false)}
+             className="md:hidden text-zinc-400 hover:text-white"
+          >
+             <X size={24} />
+          </button>
+        </div>
+        
+        <div className="md:hidden px-6 text-xs text-zinc-500 -mt-4 pb-4 border-b border-zinc-800">
+             Autonomous Multi-Agent Production Pipeline
         </div>
 
         {/* Input Form */}
@@ -440,7 +464,7 @@ export default function App() {
                     key={status.id} 
                     status={status} 
                     isActive={activeRole === status.id}
-                    onClick={() => setActiveRole(status.id)}
+                    onClick={() => handleAgentClick(status.id)}
                 />
              ))}
           </div>
@@ -449,15 +473,46 @@ export default function App() {
       </div>
 
       {/* Main Workspace */}
-      <div className="flex-1 flex flex-col bg-zinc-950 relative">
+      <div className="flex-1 flex flex-col bg-zinc-950 relative w-full">
+        
+        {/* Mobile Header */}
+        <div className="md:hidden p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/80 backdrop-blur-md z-20">
+            <div className="flex items-center gap-2">
+                 <div className="w-6 h-6 bg-amber-600 rounded flex items-center justify-center text-black font-bold">
+                    <Film size={14} />
+                </div>
+                <span className="font-bold text-white text-lg">CineMind</span>
+            </div>
+            <button 
+                onClick={() => setShowMobileSidebar(true)}
+                className="text-zinc-400 hover:text-amber-500 p-1"
+            >
+                <Menu size={24} />
+            </button>
+        </div>
+
         {/* Background Ambient Gradient */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/20 via-zinc-950 to-zinc-950 pointer-events-none"></div>
 
-        <div className="relative z-10 flex-1 h-full">
+        <div className="relative z-10 flex-1 h-full overflow-hidden">
+             {/* FAB for Mobile Start if not started */}
+            {!hasStarted && (
+                <div className="md:hidden absolute bottom-8 right-6 z-30">
+                    <button 
+                        onClick={() => setShowMobileSidebar(true)}
+                        className="bg-amber-600 text-black p-4 rounded-full shadow-lg shadow-amber-900/40 hover:bg-amber-500 hover:scale-105 transition-all flex items-center justify-center"
+                    >
+                        <Plus size={28} />
+                    </button>
+                </div>
+            )}
+
             <OutputDisplay 
                 activeRole={activeRole} 
                 filmPackage={filmPackage} 
                 isGeneratingImages={isGeneratingImages}
+                hasStarted={hasStarted}
+                onOpenSidebar={() => setShowMobileSidebar(true)}
             />
         </div>
       </div>
