@@ -4,21 +4,92 @@ import { AgentRole, ProductionMode, StoryInput } from "../types";
 // Helper to get client
 const getClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// 0. Scriptwriter Agent
+export const runScriptwriterAgent = async (input: StoryInput): Promise<string> => {
+  const ai = getClient();
+  
+  let prompt = "";
+  
+  if (input.inputType === 'script') {
+     // Rewrite Mode
+     prompt = `
+        You are an expert Screenwriter.
+        
+        EXISTING SCRIPT CONTENT:
+        "${input.content.substring(0, 50000)}"
+
+        GENRE: ${input.genre || 'Unspecified'}
+        MODE: ${input.mode}
+        TARGET LANGUAGE: ${input.language}
+
+        TASK:
+        Rewrite, format, and polish the existing script content into a professional screenplay.
+        
+        REQUIREMENTS:
+        1. Fix any formatting issues (ensure standard Scene Headers, Action, Dialogue).
+        2. Enhance dialogue for impact and natural flow.
+        3. Ensure the tone matches the ${input.mode} mode.
+        4. Maintain the core story but improve execution.
+        
+        LOCALIZATION:
+        Write the script in ${input.language}.
+        
+        Output in clean Markdown.
+     `;
+  } else {
+     // Generation Mode (Logline)
+     prompt = `
+        You are an expert Screenwriter.
+        
+        LOGLINE/IDEA:
+        "${input.content}"
+
+        GENRE: ${input.genre || 'Unspecified'}
+        MODE: ${input.mode}
+        TARGET LANGUAGE: ${input.language}
+
+        TASK:
+        Write a complete short film screenplay based on the logline above.
+        
+        REQUIREMENTS:
+        1. Standard Screenplay Format (Scene Headers, Action, Character Name, Dialogue).
+        2. Develop compelling characters and dialogue.
+        3. Ensure the tone matches the ${input.mode} mode.
+        4. Structure it with a clear beginning, middle, and end.
+        
+        LOCALIZATION:
+        Write the script in ${input.language}.
+        
+        Output in clean Markdown.
+     `;
+  }
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
+    config: {
+      systemInstruction: "You are a professional screenwriter. You write vivid action and realistic dialogue.",
+    }
+  });
+
+  return response.text || "Scriptwriter failed to generate output.";
+};
+
 // 1. Director Agent
-export const runDirectorAgent = async (input: StoryInput): Promise<string> => {
+export const runDirectorAgent = async (input: StoryInput, scriptContent: string): Promise<string> => {
   const ai = getClient();
   const prompt = `
     You are the Lead Director of a prestigious film studio.
     
-    STORY:
-    "${input.content}"
+    SCRIPT:
+    "${scriptContent.substring(0, 50000)}" 
 
     GENRE: ${input.genre || 'Unspecified'}
     MODE: ${input.mode}
     TARGET LANGUAGE: ${input.language}
 
     TASK:
-    1. Interpret the story deeply. Identify the core theme, tone, and emotional arc.
+    1. Interpret the script deeply. Identify the core theme, tone, and emotional arc.
     2. Create detailed CHARACTER PROFILES for the main cast. For each character, provide:
        - Name & Role
        - Backstory & Personality

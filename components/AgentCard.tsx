@@ -1,6 +1,6 @@
 import React from 'react';
 import { AgentRole, AgentStatus } from '../types';
-import { Video, Camera, DollarSign, Scissors, Megaphone, Loader2, CheckCircle, Circle } from 'lucide-react';
+import { Video, Camera, DollarSign, Scissors, Megaphone, Loader2, CheckCircle, Circle, PenTool } from 'lucide-react';
 
 interface AgentCardProps {
   status: AgentStatus;
@@ -9,6 +9,7 @@ interface AgentCardProps {
 }
 
 const iconMap = {
+  [AgentRole.Scriptwriter]: PenTool,
   [AgentRole.Director]: Video,
   [AgentRole.Cinematographer]: Camera,
   [AgentRole.Producer]: DollarSign,

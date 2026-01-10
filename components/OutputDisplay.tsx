@@ -13,6 +13,7 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ activeRole, filmPackage, 
   
   const getContent = () => {
     switch (activeRole) {
+      case AgentRole.Scriptwriter: return filmPackage.generatedScript;
       case AgentRole.Director: return filmPackage.scriptBreakdown;
       case AgentRole.Cinematographer: return filmPackage.shotList;
       case AgentRole.Producer: return filmPackage.budgetReport;

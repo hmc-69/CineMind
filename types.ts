@@ -1,6 +1,7 @@
 export type ProductionMode = 'Festival' | 'Netflix' | 'Budget';
 
 export enum AgentRole {
+  Scriptwriter = 'Scriptwriter',
   Director = 'Director',
   Cinematographer = 'Cinematographer',
   Producer = 'Producer',
@@ -14,6 +15,7 @@ export interface StoryInput {
   mode: ProductionMode;
   language: string;
   content: string;
+  inputType: 'logline' | 'script';
 }
 
 export interface AgentOutput {
@@ -32,6 +34,7 @@ export interface StoryboardImage {
 export interface FilmPackage {
   id: string;
   input: StoryInput;
+  generatedScript?: string; // Scriptwriter
   scriptBreakdown?: string; // Director
   shotList?: string; // Cinematographer
   budgetReport?: string; // Producer
