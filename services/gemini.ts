@@ -1,65 +1,33 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AgentRole, ProductionMode, StoryInput } from "../types";
 
 // Configuration
 const BACKEND_URL = 'http://localhost:5000/api/generate';
 
-// Helper to safely get API Key (handles both build-time env and runtime window polyfill)
-const getApiKey = () => {
-  // First try direct process.env access (bundler replaced)
-  try {
-    if (process.env.API_KEY) return process.env.API_KEY;
-  } catch (e) {
-    // ignore reference errors
-  }
-  
-  // Then try window object (runtime polyfill)
-  if (typeof window !== 'undefined') {
-    const win = window as any;
-    return win.process?.env?.API_KEY;
-  }
-  return undefined;
-};
-
-// Helper to extract text from response (works for both SDK instance and JSON response)
+// Helper to extract text from the JSON response returned by the backend
 const extractText = (response: any): string => {
-  if (response.text) return response.text; // SDK Getter
-  // Manual extraction for JSON response
+  // The backend returns the raw JSON structure of the Gemini response
   return response.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
 };
 
-// Unified Generation Function
+// Unified Generation Function - STRICT BACKEND ONLY
 const generateContent = async (model: string, contents: any, config?: any) => {
-  // 1. Try Backend First (if locally running)
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1000); // Quick timeout to check if backend is up
-
     const response = await fetch(BACKEND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, contents, config }),
-      signal: controller.signal
     });
-    
-    clearTimeout(timeoutId);
 
-    if (response.ok) {
-      return await response.json();
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Backend Error (${response.status}): ${errText}`);
     }
+
+    return await response.json();
   } catch (e) {
-    // Backend unavailable or network error - proceed to fallback
-    // console.warn("Backend unavailable, falling back to Client-Side SDK");
+    console.error("Gemini Generation Error:", e);
+    throw e;
   }
-
-  // 2. Fallback to Client-Side SDK
-  const apiKey = getApiKey();
-  if (apiKey) {
-    const ai = new GoogleGenAI({ apiKey });
-    return await ai.models.generateContent({ model, contents, config });
-  }
-
-  throw new Error("No backend available and no Client API Key found.");
 };
 
 // 0. Scriptwriter Agent
@@ -321,17 +289,18 @@ export const generateStoryboardPrompts = async (fullContext: string): Promise<st
     }
   `;
 
+  // We use string literals for Types here to avoid importing the SDK enum
   const response = await generateContent(
     'gemini-3-pro-preview',
     prompt,
     {
       responseMimeType: 'application/json',
       responseSchema: {
-        type: Type.OBJECT,
+        type: 'OBJECT',
         properties: {
           prompts: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
+            type: 'ARRAY',
+            items: { type: 'STRING' }
           }
         }
       }
@@ -363,14 +332,10 @@ export const generateImage = async (imagePrompt: string): Promise<string | undef
       }
     );
 
-    // Extract image - Handle both SDK object and raw JSON
+    // Extract image - The backend returns the full JSON response, so we look for inlineData
     let part;
     if (response.candidates?.[0]?.content?.parts) {
         part = response.candidates[0].content.parts.find((p: any) => p.inlineData);
-    }
-    // Check if parts exist in different structure from backend
-    else if ((response as any).candidates?.[0]?.content?.parts) {
-         part = (response as any).candidates[0].content.parts.find((p: any) => p.inlineData);
     }
 
     if (part && part.inlineData && part.inlineData.data) {
