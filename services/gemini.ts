@@ -1,7 +1,7 @@
 import { AgentRole, ProductionMode, StoryInput } from "../types";
 
-// Configuration - Points to your local backend
-const BACKEND_URL = 'http://localhost:5000/api/generate';
+// Configuration - Points to your Railway production backend
+const BACKEND_URL = 'https://cinemind-production-95a5.up.railway.app/api/generate';
 
 // Helper to extract text from the JSON response returned by the backend
 const extractText = (response: any): string => {

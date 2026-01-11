@@ -16,6 +16,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 app.post('/api/generate', async (req, res) => {
   try {
     // Deconstruct the request expected from the frontend
+    // This allows passing 'config' for system instructions, tools, and JSON schemas
     const { model, contents, config } = req.body;
     
     // Call the Google GenAI SDK
