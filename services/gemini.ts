@@ -1,6 +1,6 @@
 import { AgentRole, ProductionMode, StoryInput } from "../types";
 
-// Configuration
+// Configuration - Points to your local backend
 const BACKEND_URL = 'http://localhost:5000/api/generate';
 
 // Helper to extract text from the JSON response returned by the backend
