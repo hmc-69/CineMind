@@ -6,6 +6,7 @@ const BACKEND_URL = 'http://localhost:5000/api/generate';
 // Helper to extract text from the JSON response returned by the backend
 const extractText = (response: any): string => {
   // The backend returns the raw JSON structure of the Gemini response
+  // We navigate the standard Gemini response structure
   return response.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
 };
 
@@ -290,6 +291,7 @@ export const generateStoryboardPrompts = async (fullContext: string): Promise<st
   `;
 
   // We use string literals for Types here to avoid importing the SDK enum
+  // The backend will pass this config to the SDK
   const response = await generateContent(
     'gemini-3-pro-preview',
     prompt,
@@ -320,6 +322,8 @@ export const generateStoryboardPrompts = async (fullContext: string): Promise<st
 // 7. Image Generation
 export const generateImage = async (imagePrompt: string): Promise<string | undefined> => {
   try {
+    // We send a text prompt to an image model
+    // The backend must handle the 'parts' structure or we send it as contents
     const response = await generateContent(
       'gemini-2.5-flash-image',
       {
@@ -333,6 +337,7 @@ export const generateImage = async (imagePrompt: string): Promise<string | undef
     );
 
     // Extract image - The backend returns the full JSON response, so we look for inlineData
+    // Navigate safely
     let part;
     if (response.candidates?.[0]?.content?.parts) {
         part = response.candidates[0].content.parts.find((p: any) => p.inlineData);
